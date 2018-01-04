@@ -6,7 +6,7 @@ def main(argv):
 
 	# Getting params
 	try:
-	  	opts, args = getopt.getopt(argv,"l:o")
+	  	opts, args = getopt.getopt(argv,"l:o:")
 	except getopt.GetoptError:
 	  	print 'python run.py -l <logdir> -o <output>'
 	  	sys.exit(2)
@@ -14,7 +14,6 @@ def main(argv):
   	outputdir = os.path.dirname(os.path.realpath(__file__)) + '/output';
 
 	# iterating over the params
-	printStages = False
 	for opt, value in opts:
 		if opt == "-l":
 			logdir = os.path.realpath(value)
