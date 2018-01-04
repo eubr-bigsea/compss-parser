@@ -120,14 +120,23 @@ def mean_dag(dags):
 
 def execute(logdir, outputdir):
 	dags = parse_logs(logdir)
+	data = {}
 	for ahash in dags:
 		i = 0
 		for appTime, app in dags[ahash]:
 			summ = 0
 			for idx, stage in enumerate(app):
-				data = ""
+				if not data.has_key(idx):
+					data[idx] = {}
+
 				for task_id in stage:
 					duration = sub_str_datetimes(stage[task_id]["end"], stage[task_id]["start"])
-					data += "%f\n" % duration
-				write_file(outputdir + "/%d-%d.txt"% (i, idx), data)
+					if not data[idx].has_key(task_id):
+						data[idx][task_id] = float(duration)
+					else:
+						data[idx][task_id] = (data[idx][task_id]+float(duration))/2.0
+
 			i+=1
+
+		output = json.dumps(data)
+		write_file(outputdir + "/out.txt", output)
