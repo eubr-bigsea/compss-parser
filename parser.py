@@ -1,6 +1,9 @@
 import json, sys, re, os, math, time
 from util import write_file, sub_str_datetimes, read_files
 
+# import json, sys, re, os, math, time
+# from util import write_file, sub_unix_timestamps, sub_str_datetimes, sub_datetimes, read_files, parse_stages_as_tree, hash_tree, datetime_to_unix_timestamp, write_file_from_matrix
+
 # read log line by line as json
 def read_log(logpath):
 	return [line.replace("\r", "").replace("\n", "") for line in tuple(open(logpath, 'r'))]
@@ -24,7 +27,6 @@ def parse_DAG(logPath):
 	
 	app = {}
 	stages = []
-	tasks = {}
 
 	first_task_datetime = 0
 	first_task = 0
@@ -38,11 +40,15 @@ def parse_DAG(logPath):
 		if "@doSubmit" in log and "Task:" in log:
 			m = pd.search(log)
 			datetime = m.group(0)
+			# timestamp = datetime_to_unix_timestamp(datetime)
 
-			n = pt.search(log)
-			job_id = int(n.group(1))
-			task_id = int(n.group(2))
-			tasks[task_id] = {"start": datetime, "end": 0}
+			m = pt.search(log)
+			job_id = int(m.group(1))
+			task_id = int(m.group(2))
+
+			if first_task_datetime == 0:
+				first_task_datetime = datetime
+				first_task = task_id
 
 		# finding an end task event
 		if "@endTask" in log and "status FINISHED" in log:
@@ -53,14 +59,20 @@ def parse_DAG(logPath):
 			m = pte.search(log)
 			task_id = int(m.group(1))
 
-			tasks[task_id]["end"] = datetime
+			end_task_datetime = datetime
+			end_task = task_id
 
-		# synchronizing, 
-		# however it's needed to check if there is more than one synchronization after the current stage
-		if "@waitForTask" in log and "End of waited task for data":
-			if tasks:
-				stages.append(tasks)
-				tasks = {}
+		if "@waitForTask" in log:
+
+			# stage without task
+			if first_task_datetime == 0:
+				first_task_datetime = end_task_datetime
+				m = pd.search(log)
+				end_task_datetime = m.group(0)
+
+			stage = {"id": end_task, "job_id":end_task, "task_id":end_task, "overlap": [], "duration": sub_str_datetimes(end_task_datetime, first_task_datetime), "start_datetime": first_task_datetime, "end_datetime": end_task_datetime, "start": {"taskId": first_task, "datetime": first_task_datetime}, "end": {"taskId": end_task, "datetime": end_task_datetime}}
+			stages.append(stage)
+			first_task_datetime = 0
 
 		if "@init" in log:
 			m = pd.search(log)
@@ -116,27 +128,15 @@ def mean_dag(dags):
 
 	return meanAppTime, meanDags			
 
-
-
 def execute(logdir, outputdir):
 	dags = parse_logs(logdir)
+	mapp, mdag = mean_dag(dags)
+	
 	data = {}
-	for ahash in dags:
-		i = 0
-		for appTime, app in dags[ahash]:
-			summ = 0
-			for idx, stage in enumerate(app):
-				if not data.has_key(idx):
-					data[idx] = {}
+	i = 0
+	for ahash in mdag:
+		output = json.dumps(mdag[ahash])
+		write_file(outputdir + "/out-%d.txt"%i, output)
+		i+=1
 
-				for task_id in stage:
-					duration = sub_str_datetimes(stage[task_id]["end"], stage[task_id]["start"])
-					if not data[idx].has_key(task_id):
-						data[idx][task_id] = float(duration)
-					else:
-						data[idx][task_id] = (data[idx][task_id]+float(duration))/2.0
-
-			i+=1
-
-		output = json.dumps(data)
-		write_file(outputdir + "/out.txt", output)
+		
