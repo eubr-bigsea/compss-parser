@@ -129,6 +129,7 @@ def mean_dag(dags):
 	return meanAppTime, meanDags			
 
 def execute(logdir, outputdir):
+	print "o",outputdir
 	dags = parse_logs(logdir)
 	mapp, mdag = mean_dag(dags)
 	
