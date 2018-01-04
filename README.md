@@ -2,7 +2,7 @@
 
 #### Usage:
 
-python run.py -l <LOG DIR> -o <optional | OUTPUT DIR>
+python run.py -l (LOG DIR) -o (optional | OUTPUT DIR)
 
 #### Example:
 
