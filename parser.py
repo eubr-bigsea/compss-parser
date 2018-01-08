@@ -18,6 +18,10 @@ def parse_DAG(logPath):
 	patternTask = "New Job (\d*) \(Task: (\d*)\)"
 	pt = re.compile(patternTask)
 
+	# defining a pattern to match the job and task method name
+	patternMethod = "Method name: (.*)"
+	pm = re.compile(patternMethod)
+
 	# definind a pattern to match task id on @endTask event
 	patternTaskEnd = "Notification received for task (\d*) with end status FINISHED"
 	pte = re.compile(patternTaskEnd)
@@ -30,7 +34,7 @@ def parse_DAG(logPath):
 	first_task = 0
 	end_task = 0
 	end_task_datetime = 0
-	
+	task_id = -1
 	# iterating over all events to fetch starting and ending times of tasks
 	for log in events:
 
@@ -42,7 +46,18 @@ def parse_DAG(logPath):
 			n = pt.search(log)
 			job_id = int(n.group(1))
 			task_id = int(n.group(2))
+			last_opened_task = task_id
+
+			# nid = "J%dS%d" % (job_id, task_id)
+
 			tasks[task_id] = {"start": datetime, "end": 0}
+
+		# find method name
+		if "@doSubmit" in log and "Method name:" in log:
+			m = pm.search(log)
+			method_name = m.group(1)
+			tasks[last_opened_task]["method"] = method_name
+
 
 		# finding an end task event
 		if "@endTask" in log and "status FINISHED" in log:
@@ -120,14 +135,26 @@ def mean_dag(dags):
 
 def execute(logdir, outputdir):
 	dags = parse_logs(logdir)
+
 	for ahash in dags:
 		i = 0
+
 		for appTime, app in dags[ahash]:
 			summ = 0
+			stages_data = ""
 			for idx, stage in enumerate(app):
+				sum_s = {}
 				data = ""
 				for task_id in stage:
+					if not sum_s.has_key(stage[task_id]["method"]):
+						sum_s[stage[task_id]["method"]] = 0
+
+					sum_s[stage[task_id]["method"]] += 1
+
 					duration = sub_str_datetimes(stage[task_id]["end"], stage[task_id]["start"])
 					data += "%f\n" % duration
-				write_file(outputdir + "/%d-%d.txt"% (i, idx), data)
+				outputFilename = outputdir + "/%d-%d.txt"% (i, idx)
+				write_file(outputFilename, data)
+				stages_data += '{"name": "S%d", "methods": "%s", "path": "%s"}\n' % (idx, json.dumps(sum_s), outputFilename)
+			write_file(outputdir + "/%d-stages.txt"%i, stages_data)
 			i+=1
