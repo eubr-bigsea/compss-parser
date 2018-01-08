@@ -151,8 +151,8 @@ def execute(logdir, outputdir):
 
 					sum_s[stage[task_id]["method"]] += 1
 
-					duration = sub_str_datetimes(stage[task_id]["end"], stage[task_id]["start"])
-					data += "%f\n" % duration
+					duration = int(sub_str_datetimes(stage[task_id]["end"], stage[task_id]["start"]))
+					data += "%d\n" % duration
 				outputFilename = outputdir + "/%d-%d.txt"% (i, idx)
 				write_file(outputFilename, data)
 				stages_data += '{"name": "S%d", "methods": "%s", "path": "%s"}\n' % (idx, json.dumps(sum_s), outputFilename)
